@@ -1,80 +1,70 @@
-# Fedora 43 ADVAN 1701 Audio Fix
+# Fedora 43 Setup & Fixes (ADVAN 1701 & Epson)
 
-Repository ini berisi dokumentasi teknis untuk memperbaiki masalah audio pada laptop **ADVAN 1701** yang menjalankan **Fedora 43**. Masalah ini sering terjadi di mana speaker internal tidak berbunyi setelah headset dicabut, meskipun sistem mendeteksi perangkat audio dengan benar.
+Repository ini berisi kumpulan dokumentasi teknis dan panduan untuk mengoptimalkan **Fedora 43**, khususnya untuk laptop **ADVAN 1701** dan perangkat pendukung seperti printer **Epson L3210**.
 
-## 📌 Overview
-Masalah yang diatasi dalam panduan ini meliputi:
+## 📑 Daftar Isi
+1. [Perbaikan Audio ADVAN 1701](#-perbaikan-audio-advan-1701)
+2. [Instalasi Driver Epson L3210](#-instalasi-driver-epson-l3210)
+
+---
+
+## 🔊 Perbaikan Audio ADVAN 1701
+
+Masalah ini sering terjadi di mana speaker internal tidak berbunyi setelah headset dicabut, meskipun sistem mendeteksi perangkat audio dengan benar pada laptop ADVAN 1701.
+
+### 📌 Overview
 - Speaker laptop tidak mengeluarkan suara sama sekali.
 - Headset/Headphone berfungsi normal saat dicolokkan.
-- Masalah muncul/menetap setelah headset dicabut (status speaker tetap "unavailable").
-- Layanan PipeWire dan WirePlumber terlihat berjalan normal di latar belakang.
+- Perangkat audio Stack: PipeWire + WirePlumber.
+- Hardware Codec: Realtek ALC269VB.
 
-## 🧠 Root Cause (Ringkas)
-Penyebab utama masalah ini bukan pada perangkat lunak audio (seperti PipeWire), melainkan pada tingkat **ALSA / Kernel**:
-- **Sticky Jack Detection**: Sensor fisik atau driver pada chip audio mendeteksi bahwa headphone "masih terpasang" padahal sudah dicabut.
-- **ALC269VB Quirk**: Chip Realtek ALC269VB pada laptop ini memerlukan konfigurasi pin khusus agar bisa melakukan *switching* output secara otomatis.
-- **Regression**: Perubahan pada kernel atau firmware di Fedora 43 terkadang menyebabkan konfigurasi amplifier internal (EAPD) tidak tersetel dengan benar saat booting.
+### 🛠️ Langkah Perbaikan Audio
+1. **Install alsa-tools**: `sudo dnf install alsa-tools -y`
+2. **Buka hdajackretask**: `sudo hdajackretask`
+3. **Advanced Override**:
+   - Centang **"Advanced override"**.
+   - **Pin ID: 0x14**: Set ke **Internal Speaker**.
+   - **Pin ID: 0x21**: Set **Jack detection** ke **"Not present"**.
+   - Klik **"Install boot override"** dan **Reboot**.
 
-## 🧪 Gejala Umum
-- Perintah `speaker-test -t wav -c 2` berjalan tanpa error, tapi tidak ada suara terdengar.
-- Di pengaturan suara (GNOME Settings), port speaker tertulis **"(unavailable)"**.
-- Audio hanya mau keluar ketika headset terdeteksi terpasang.
-- Aplikasi seperti Discord, Firefox, atau Spotify terlihat memutar lagu tapi senyap di speaker.
+---
 
-## 🛠️ Solusi (Langkah demi Langkah)
+## 🖨️ Instalasi Driver Epson L3210
 
-### 1. Verifikasi Audio Device
-Pastikan layanan audio aktif dengan perintah:
+Panduan untuk menginstal driver Epson L3210 dan mengatasi error verifikasi RPM pada Fedora terbaru.
+
+### 1. Instalasi Driver (Bypass Digest)
+Fedora terbaru menolak RPM lama karena masalah "no digest". Gunakan perintah ini untuk memaksa instalasi:
 ```bash
-wpctl status
-```
-Jika device **Built-in Audio Analog Stereo** terlihat, namun speaker mati, lanjut ke langkah berikutnya.
-
-### 2. Gunakan `hdajackretask` (Advanced Override)
-Ini adalah langkah paling ampuh untuk memaksa sistem mengabaikan sensor jack yang bermasalah.
-
-1. **Install alsa-tools**:
-   ```bash
-   sudo dnf install alsa-tools -y
-   ```
-2. **Buka Aplikasi**:
-   ```bash
-   sudo hdajackretask
-   ```
-3. **Konfigurasi Retasking**:
-   - Pastikan Codec yang terpilih adalah **Realtek ALC269VB**.
-   - Di sisi kanan (**Options**), centang **"Advanced override"**.
-   - Cari **Pin ID: 0x14** (Internal Speaker), centang **Override**, dan pastikan pilih **Internal Speaker**.
-   - Cari **Pin ID: 0x21** (Black Headphone), centang **Override**, lalu pada baris **Jack detection** pilih **"Not present"**.
-   - Klik **"Install boot override"** di pojok kanan bawah.
-4. **Simpan & Reboot**:
-   Simpan pengaturan dan lakukan **Reboot** laptop Anda.
-
-### 3. Matikan Auto-Mute (Opsional)
-Jika setelah reboot masih belum keluar, coba matikan mode Auto-Mute via terminal:
-```bash
-amixer -c 0 sset 'Auto-Mute Mode' Disabled
+sudo rpm -ivh --nodigest --nofiledigest ~/Downloads/epson-inkjet-printer-202101w-1.0.2-1.x86_64.rpm
 ```
 
-## ⚠️ Catatan Penting
-- **Workaround**: Ini adalah solusi sementara (workaround), bukan perbaikan permanen dari pengembang kernel (upstream).
-- **Hati-hati**: Mengubah pin audio secara sembarangan bisa menyebabkan hardware tidak terbaca. Ikuti ID Pin (0x14 & 0x21) dengan teliti.
-- **Backup**: Selalu disarankan melakukan backup data penting Anda sebelum melakukan perubahan sistem yang mendalam.
+### 2. Konfigurasi CUPS & Driver PPD
+Agar bisa mencetak grafis (bukan hanya teks mentah), ganti driver printer ke PPD resmi Epson:
+
+1. **Pastikan CUPS Aktif**: `sudo systemctl enable --now cups`
+2. **Cari Path Driver**: `lpinfo -m | grep L3210`
+3. **Terapkan Driver**:
+   ```bash
+   sudo lpadmin -p L3210 -m lsb/usr/epson-inkjet-printer-202101w/Epson/Epson-L3210_Series-epson-driver.ppd.gz
+   ```
+4. **Restart CUPS**: `sudo systemctl restart cups`
+
+### 3. Troubleshooting
+Jika printer "Could not start" di LibreOffice, pastikan library pendukung terinstal:
+```bash
+sudo dnf install libnsl
+```
+
+---
 
 ## 🖥️ Device Information
 - **Laptop**: ADVAN 1701
-- **OS**: Fedora 43 (Workstation Edition)
-- **Desktop**: GNOME 46+
-- **Audio Stack**: PipeWire + WirePlumber
-- **Codec Hardware**: Realtek ALC269VB
+- **Printer**: Epson L3210 (Ink Tank Series)
+- **OS**: Fedora 43 (Workstation)
 
-## 📚 Referensi
-- **Fedora Discussion**: Diskusi komunitas mengenai masalah audio ALC269.
-- **Reddit r/Fedora**: Laporan bug audio pada Fedora 42/43.
-- **ALSA Documentation**: Dokumentasi mengenai HDA jack retasking.
-
-## 🧩 Status
-- [x] Speaker berfungsi kembali normal
-- [x] Headset tetap berfungsi sebagaimana mestinya (manual switch jika perlu)
+## 🧩 Status Project
+- [x] Perbaikan Audio ADVAN 1701 (Speaker Fixed)
+- [x] Instalasi Driver Epson L3210 (Printing Fixed)
 
 
