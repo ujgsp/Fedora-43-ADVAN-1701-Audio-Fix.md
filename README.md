@@ -72,6 +72,7 @@ amixer -c 0 sset 'Auto-Mute Mode' Disabled
 - **Fedora Discussion**: Diskusi komunitas mengenai masalah audio ALC269.
 - **Reddit r/Fedora**: Laporan bug audio pada Fedora 42/43.
 - **ALSA Documentation**: Dokumentasi mengenai HDA jack retasking.
+- Things to do after installing Fedora 43 [Fedora 43 Post Install Guide](https://github.com/devangshekhawat/Fedora-43-Post-Install-Guide)
 
 ## 🧩 Status
 - [x] Speaker berfungsi kembali normal
